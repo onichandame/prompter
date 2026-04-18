@@ -1,10 +1,29 @@
 <script lang="ts">
     import { enhance } from '$app/forms';
+    import { goto } from '$app/navigation';
     let { data, form } = $props();
+
+    let searchTimer: ReturnType<typeof setTimeout>;
+    function handleSearch(e: Event) {
+        clearTimeout(searchTimer);
+        const val = (e.target as HTMLInputElement).value;
+        searchTimer = setTimeout(() => {
+            const url = new URL(window.location.href);
+            if (val) {
+                url.searchParams.set('q', val);
+            } else {
+                url.searchParams.delete('q');
+            }
+            // keepFocus prevents input cursor loss, noScroll prevents page jump
+            goto(url.toString(), { keepFocus: true, replaceState: true, noScroll: true });
+        }, 300);
+    }
 </script>
 
 <div class="w-full max-w-5xl mx-auto mb-16 sticky top-0 bg-black pt-4 pb-8 z-20">
     <input type="text" placeholder="Type to search... (Cmd+K)" autofocus
+        value={data.searchQuery}
+        oninput={handleSearch}
         class="w-full bg-transparent border-b border-gray-800 text-3xl md:text-5xl py-4 focus:outline-none focus:border-white transition-colors placeholder-gray-800 tracking-tight font-light">
     <div class="absolute right-0 bottom-12 text-gray-600 font-mono text-xs hidden md:block">
         Press Enter to copy top result

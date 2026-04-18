@@ -44,3 +44,10 @@
   * 维持 OLED 极简美学时，表单元素（Input/Textarea）需使用透明背景 (`bg-transparent`) 与焦点高亮边框 (`focus:border-[#39FF14]`)，避免破坏整体的暗黑沉浸感。
 * **New Conventions**:
   * 视图层数据接收必须严格使用 Svelte 5 的 `let { data, form } = $props();`，绝对禁止回退到 Svelte 3/4 的 `export let` 语法。
+
+## Phase 5: Search & Read Flow (Completed)
+* **Architecture State**: 实现了 FTS5 的实时全文检索。前端通过 SvelteKit 的 `goto` 与 URL `?q=` 强绑定，实现无刷新的防抖（Debounce）搜索；服务端基于 Drizzle 的 `sql` 模板语法，将 `prompts` 物理表与 `prompts_fts` 虚拟表进行 `innerJoin`，完成 `MATCH` 检索。
+* **Lessons Learned**:
+  * 前端在 `<input>` 上绑定动态 `goto` 路由跳转时，必须携带 `{ keepFocus: true, replaceState: true, noScroll: true }`，否则会导致输入框瞬间失焦、页面跳动且污染浏览器历史记录。
+* **New Conventions**:
+  * 虚拟表查询规范：针对 FTS5 虚拟表的查询，必须使用 `innerJoin` 与物理表强关联（`eq(prompts.id, promptsFts.id)`），确保能安全返回完整的字段类型，严禁直接 `select * from prompts_fts`。

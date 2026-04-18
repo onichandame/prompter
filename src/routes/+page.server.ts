@@ -1,17 +1,41 @@
 import { drizzle } from 'drizzle-orm/d1';
+import { sql, eq } from 'drizzle-orm';
 import { prompts, promptsFts } from '$lib/server/db/schema';
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ platform }) => {
+export const load: PageServerLoad = async ({ platform, url }) => {
+    const q = url.searchParams.get('q');
+    
     if (!platform?.env?.DB) {
         console.warn("[DB Warning] Missing D1 binding in platform.env");
-        return { prompts: [] };
+        return { prompts: [], searchQuery: q || '' };
     }
     const db = drizzle(platform.env.DB);
-    const allPrompts = await db.select().from(prompts).orderBy(prompts.createdAt);
+    let allPrompts;
+
+    if (q) {
+        // [Architect Core]: Inner join FTS virtual table for MATCH querying
+        const results = await db.select({
+            id: prompts.id,
+            title: prompts.title,
+            content: prompts.content,
+            tags: prompts.tags,
+            createdAt: prompts.createdAt
+        })
+        .from(prompts)
+        .innerJoin(promptsFts, eq(prompts.id, promptsFts.id))
+        .where(sql`${promptsFts} MATCH ${q}`)
+        .orderBy(prompts.createdAt);
+        
+        allPrompts = results;
+    } else {
+        allPrompts = await db.select().from(prompts).orderBy(prompts.createdAt);
+    }
+
     return {
-        prompts: allPrompts
+        prompts: allPrompts,
+        searchQuery: q || ''
     };
 };
 
