@@ -28,3 +28,12 @@
 
 ## Phase 2: Data Layer & FTS5 Setup (Completed)
 * **Architecture State**: 搭建了 D1 的 Drizzle ORM 数据层，利用 FTS5 构建了搜索虚拟表，跑通了本地 Wrangler 迁移闭环。
+
+## Phase 3: Application Layer & Double-Write (Completed)
+* **Architecture State**: 贯通了 UI 层至 D1 数据库的双写逻辑。在 `src/routes/+page.server.ts` 中利用 SvelteKit Form Actions 接收前端提交，并通过 Drizzle 的 `db.batch()` 实现了物理表 `prompts` 与虚拟表 `prompts_fts` 的强一致性事务操作。
+* **Lessons Learned**: 
+  * **DON'T DO**: 再次强调，绝对禁止尝试在 D1 中挂载 Trigger 来同步虚拟表。必须在 Worker 层捕获数据流并显式执行 `db.batch` 双写。
+  * FTS5 的分词器无法原生检索序列化的 JSON 数组格式，必须在双写进入虚拟表时，将 `tags` 数组显式拍平为以空格分隔的纯文本（`tags.join(' ')`），否则全文检索的词根拆分会彻底失效。
+* **New Conventions**:
+  * 安全规范：所有写入 D1 的数据变更必须被封装在 SvelteKit 的 `+page.server.ts` Action 内流转，严禁在客户端直连。
+  * 探针规范：本地使用 curl 绕过浏览器测试 SvelteKit Actions 时，必须显式携带与目标一致的 `Origin` header，否则会被内置的 CSRF 防护直接拦截。
