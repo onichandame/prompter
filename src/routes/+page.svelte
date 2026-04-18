@@ -1,9 +1,32 @@
 <script lang="ts">
     import { enhance } from '$app/forms';
     import { goto } from '$app/navigation';
+    import { fade } from 'svelte/transition';
     let { data, form } = $props();
 
     let searchTimer: ReturnType<typeof setTimeout>;
+    let copiedContent = $state<string | null>(null);
+
+    async function copyToClipboard(text: string) {
+        if (!text) return;
+        try {
+            await navigator.clipboard.writeText(text);
+            copiedContent = text;
+            setTimeout(() => {
+                if (copiedContent === text) copiedContent = null;
+            }, 2000);
+        } catch (err) {
+            console.error('Failed to copy text: ', err);
+        }
+    }
+
+    function handleInputKeydown(e: KeyboardEvent) {
+        if (e.key === 'Enter' && data.prompts?.length > 0) {
+            e.preventDefault();
+            copyToClipboard(data.prompts[0].content);
+        }
+    }
+
     function handleSearch(e: Event) {
         clearTimeout(searchTimer);
         const val = (e.target as HTMLInputElement).value;
@@ -21,10 +44,11 @@
 </script>
 
 <div class="w-full max-w-5xl mx-auto mb-16 sticky top-0 bg-black pt-4 pb-8 z-20">
-    <input type="text" placeholder="Type to search... (Cmd+K)" autofocus
-        value={data.searchQuery}
-        oninput={handleSearch}
-        class="w-full bg-transparent border-b border-gray-800 text-3xl md:text-5xl py-4 focus:outline-none focus:border-white transition-colors placeholder-gray-800 tracking-tight font-light">
+        <input type="text" placeholder="Type to search... (Cmd+K)" autofocus
+            value={data.searchQuery}
+            oninput={handleSearch}
+            onkeydown={handleInputKeydown}
+            class="w-full bg-transparent border-b border-gray-800 text-3xl md:text-5xl py-4 focus:outline-none focus:border-white transition-colors placeholder-gray-800 tracking-tight font-light">
     <div class="absolute right-0 bottom-12 text-gray-600 font-mono text-xs hidden md:block">
         Press Enter to copy top result
     </div>
@@ -48,19 +72,34 @@
 </div>
 
 <div class="w-full max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-    {#each data.prompts as prompt}
-        <div class="border border-gray-900 p-6 hover:border-gray-600 transition-colors cursor-pointer group flex flex-col h-64">
-            <h3 class="font-medium mb-3 text-lg tracking-tight group-hover:text-white text-gray-200">{prompt.title}</h3>
-            <p class="text-gray-500 text-sm leading-relaxed line-clamp-5 flex-1 font-mono">{prompt.content}</p>
-            <div class="mt-4 flex justify-between items-center text-xs font-mono text-gray-700">
-                <span>{prompt.tags ? prompt.tags.join(', ') : 'No tags'}</span>
-                <span class="opacity-0 group-hover:opacity-100 transition-opacity text-[#39FF14]">Click to copy</span>
+        {#each data.prompts as prompt}
+            <div 
+                class="border border-gray-900 p-6 hover:border-gray-600 transition-colors cursor-pointer group flex flex-col h-64"
+                role="button"
+                tabindex="0"
+                onclick={() => copyToClipboard(prompt.content)}
+                onkeydown={(e) => e.key === 'Enter' && copyToClipboard(prompt.content)}
+            >
+                <h3 class="font-medium mb-3 text-lg tracking-tight group-hover:text-white text-gray-200">{prompt.title}</h3>
+                <p class="text-gray-500 text-sm leading-relaxed line-clamp-5 flex-1 font-mono">{prompt.content}</p>
+                <div class="mt-4 flex justify-between items-center text-xs font-mono text-gray-700">
+                    <span>{prompt.tags ? prompt.tags.join(', ') : 'No tags'}</span>
+                    <span class="{copiedContent === prompt.content ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity text-[#39FF14]">
+                        {copiedContent === prompt.content ? 'Copied!' : 'Click to copy'}
+                    </span>
+                </div>
             </div>
-        </div>
-    {/each}
-    {#if data.prompts.length === 0}
-        <div class="col-span-full border border-gray-900 p-6 text-center text-gray-600 font-mono text-sm">
-            Vault is empty. Create your first prompt above.
+        {/each}
+        {#if data.prompts.length === 0}
+            <div class="col-span-full border border-gray-900 p-6 text-center text-gray-600 font-mono text-sm">
+                Vault is empty. Create your first prompt above.
+            </div>
+        {/if}
+    </div>
+
+    {#if copiedContent}
+        <div transition:fade={{ duration: 200 }} class="fixed top-8 right-8 bg-black border border-[#39FF14] text-[#39FF14] px-5 py-3 z-50 font-mono text-sm flex items-center gap-2 shadow-2xl">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+            Copied to clipboard
         </div>
     {/if}
-</div>

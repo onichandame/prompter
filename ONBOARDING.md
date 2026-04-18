@@ -59,3 +59,11 @@
   * 部署全栈单体时，优先考虑直接作为 Worker 部署，而非传统的 Pages 静态托管附加 Functions 的模式。
 * **New Conventions**:
   * **生产绑定规范**: 无论 Cloudflare CLI 自动生成的生产数据库绑定名是什么（例如 `prompt_vault_db`），在更新 `wrangler.toml` 时，**必须强制将其改回我们在代码中约定的 `binding = "DB"`**，仅替换 `database_id`。这样才能保证 `platform.env.DB` 逻辑在开发和生产环境无缝流转。
+
+## Phase 7: UX Polishing & Accessibility (Completed)
+* **Architecture State**: 完善了视图层的剪贴板交互逻辑。利用 Svelte 5 的 `$state` 和 `svelte/transition` (`fade`) 实现了轻量级的全局 Toast 反馈，并为卡片节点补充了完整的无障碍 (a11y) 属性 (`role`, `tabindex`, 键盘事件监听)。
+* **Lessons Learned & DON'Ts**: 
+  * **DON'T DO**: 严禁在 `<div/>` 等非原生交互元素上只绑定 `onclick`。必须配套 `role="button"`、`tabindex="0"` 和 `onkeydown` (监听 Enter 键)，以确保可以通过键盘聚焦和触发。
+  * **DON'T DO**: 遇到 D1 数据库 "Failed query: select ..." 报错时，绝对禁止盲目重置或重新生成迁移。必须先执行 `npx wrangler d1 migrations list DB --local` 获取确凿的本地未迁移证据后，再执行 `apply`。
+* **New Conventions**:
+  * **状态反馈规范**: 坚持 OLED 极简美学，拒绝引入臃肿的第三方 Toast UI 库。所有临时 UI 反馈均应直接使用 Svelte 原生 `$state` 与内置的 `transition` 配合绝对定位 (fixed) 容器实现。
