@@ -1,3 +1,8 @@
+<script lang="ts">
+    import { enhance } from '$app/forms';
+    let { data, form } = $props();
+</script>
+
 <div class="w-full max-w-5xl mx-auto mb-16 sticky top-0 bg-black pt-4 pb-8 z-20">
     <input type="text" placeholder="Type to search... (Cmd+K)" autofocus
         class="w-full bg-transparent border-b border-gray-800 text-3xl md:text-5xl py-4 focus:outline-none focus:border-white transition-colors placeholder-gray-800 tracking-tight font-light">
@@ -6,35 +11,37 @@
     </div>
 </div>
 
+<div class="w-full max-w-5xl mx-auto mb-12">
+    <form method="POST" action="?/create" use:enhance class="border border-gray-900 p-6 flex flex-col gap-4">
+        <h2 class="text-[#39FF14] font-medium tracking-tight">Create New Vault Entry</h2>
+        {#if form?.message}
+            <p class="text-red-500 text-xs font-mono">{form.message}</p>
+        {/if}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input type="text" name="title" placeholder="Prompt Title" required class="bg-transparent border border-gray-800 p-3 focus:outline-none focus:border-[#39FF14] text-gray-200 transition-colors">
+            <input type="text" name="tags" placeholder="Tags (comma separated)" class="bg-transparent border border-gray-800 p-3 focus:outline-none focus:border-[#39FF14] text-gray-200 transition-colors">
+        </div>
+        <textarea name="content" placeholder="Prompt Content... use &#123;&#123;variable&#125;&#125; for templates" required rows="3" class="bg-transparent border border-gray-800 p-3 focus:outline-none focus:border-[#39FF14] text-gray-200 transition-colors resize-y font-mono text-sm"></textarea>
+        <div class="flex justify-end">
+            <button type="submit" class="bg-[#39FF14] text-black px-6 py-2 font-medium hover:bg-white transition-colors">Save to Vault</button>
+        </div>
+    </form>
+</div>
+
 <div class="w-full max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-    
-    <div class="border border-gray-900 p-6 hover:border-gray-600 transition-colors cursor-pointer group flex flex-col h-64">
-        <h3 class="font-medium mb-3 text-lg tracking-tight group-hover:text-white text-gray-200">Strict Code Reviewer</h3>
-        <p class="text-gray-500 text-sm leading-relaxed line-clamp-5 flex-1">You are a strict code reviewer. Analyze the following code for security vulnerabilities, performance bottlenecks, and adherence to clean code principles. Suggest concrete improvements without rewriting the entire file unless necessary. Be terse and direct.</p>
-        <div class="mt-4 flex justify-between items-center text-xs font-mono text-gray-700">
-            <span>Used 142x</span>
-            <span class="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400">Click to copy</span>
+    {#each data.prompts as prompt}
+        <div class="border border-gray-900 p-6 hover:border-gray-600 transition-colors cursor-pointer group flex flex-col h-64">
+            <h3 class="font-medium mb-3 text-lg tracking-tight group-hover:text-white text-gray-200">{prompt.title}</h3>
+            <p class="text-gray-500 text-sm leading-relaxed line-clamp-5 flex-1 font-mono">{prompt.content}</p>
+            <div class="mt-4 flex justify-between items-center text-xs font-mono text-gray-700">
+                <span>{prompt.tags ? prompt.tags.join(', ') : 'No tags'}</span>
+                <span class="opacity-0 group-hover:opacity-100 transition-opacity text-[#39FF14]">Click to copy</span>
+            </div>
         </div>
-    </div>
-
-    <div class="border border-gray-900 p-6 hover:border-gray-600 transition-colors cursor-pointer group flex flex-col h-64 relative">
-        <div class="absolute top-6 right-6 w-2 h-2 rounded-full bg-blue-500"></div>
-        <h3 class="font-medium mb-3 text-lg tracking-tight group-hover:text-white text-gray-200">API Documentation</h3>
-        <p class="text-gray-500 text-sm leading-relaxed line-clamp-5 flex-1">Generate markdown API documentation for the following endpoint: &#123;&#123;endpoint_url&#125;&#125;. Include expected request headers, payload structure for method &#123;&#123;method&#125;&#125;, and standard response codes.</p>
-        <div class="mt-4 flex justify-between items-center text-xs font-mono text-gray-700">
-            <span>Used 89x</span>
-            <span class="opacity-0 group-hover:opacity-100 transition-opacity text-blue-400">Tab to fill &#123;&#123;...&#125;&#125;</span>
+    {/each}
+    {#if data.prompts.length === 0}
+        <div class="col-span-full border border-gray-900 p-6 text-center text-gray-600 font-mono text-sm">
+            Vault is empty. Create your first prompt above.
         </div>
-    </div>
-
-    <div class="border border-[#39FF14] p-6 cursor-pointer flex flex-col h-64 relative overflow-hidden bg-black shadow-[0_0_15px_rgba(57,255,20,0.1)]">
-        <div class="absolute inset-0 bg-[#39FF14] opacity-5"></div>
-        <h3 class="font-medium mb-3 text-lg tracking-tight text-[#39FF14] relative z-10">Git Commit Generator</h3>
-        <p class="text-[#39FF14] opacity-70 text-sm leading-relaxed line-clamp-5 flex-1 relative z-10">Generate a conventional commit message based on the following git diff. Ensure it follows the Type/Scope structure. Output only the commit message.</p>
-        <div class="mt-4 flex justify-between items-center text-xs font-mono relative z-10 text-[#39FF14]">
-            <span>Just now</span>
-            <span class="font-bold">Copied to clipboard ✓</span>
-        </div>
-    </div>
-
+    {/if}
 </div>

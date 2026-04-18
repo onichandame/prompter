@@ -37,3 +37,10 @@
 * **New Conventions**:
   * 安全规范：所有写入 D1 的数据变更必须被封装在 SvelteKit 的 `+page.server.ts` Action 内流转，严禁在客户端直连。
   * 探针规范：本地使用 curl 绕过浏览器测试 SvelteKit Actions 时，必须显式携带与目标一致的 `Origin` header，否则会被内置的 CSRF 防护直接拦截。
+
+## Phase 4: UI Write Flow & Data Binding (Completed)
+* **Architecture State**: 实现了前端视图层 (`+page.svelte`) 与服务端 Action (`?/create`) 的安全连通。利用 SvelteKit 的 `use:enhance` 实现了无刷新表单提交，并通过 Svelte 5 的 `$props()` 成功渲染了从 D1 数据库拉取的 Prompt 列表。
+* **Lessons Learned**: 
+  * 维持 OLED 极简美学时，表单元素（Input/Textarea）需使用透明背景 (`bg-transparent`) 与焦点高亮边框 (`focus:border-[#39FF14]`)，避免破坏整体的暗黑沉浸感。
+* **New Conventions**:
+  * 视图层数据接收必须严格使用 Svelte 5 的 `let { data, form } = $props();`，绝对禁止回退到 Svelte 3/4 的 `export let` 语法。
