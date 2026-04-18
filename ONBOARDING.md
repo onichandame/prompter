@@ -51,3 +51,11 @@
   * 前端在 `<input>` 上绑定动态 `goto` 路由跳转时，必须携带 `{ keepFocus: true, replaceState: true, noScroll: true }`，否则会导致输入框瞬间失焦、页面跳动且污染浏览器历史记录。
 * **New Conventions**:
   * 虚拟表查询规范：针对 FTS5 虚拟表的查询，必须使用 `innerJoin` 与物理表强关联（`eq(prompts.id, promptsFts.id)`），确保能安全返回完整的字段类型，严禁直接 `select * from prompts_fts`。
+
+## Phase 6: Production Deployment (Completed)
+* **Architecture State**: 成功将 SvelteKit Edge Monolith 部署至 Cloudflare Workers（而非 Pages），以获得更快的冷启动和更低延迟的 D1 原生绑定。通过代码化配置 (IaC) 在 `wrangler.toml` 中直接绑定了生产级 D1 数据库和自定义域名 `prompter.onidame.qzz.io`。
+* **Lessons Learned & DON'Ts**:
+  * **DON'T DO**: 严禁在 `wrangler.toml` 中使用内联表语法（如 `routes = [{...}]`）来配置路由。必须严格遵守标准 TOML 的表数组语法（`[[routes]]`），否则极易导致 Wrangler 解析失败并拒绝部署。
+  * 部署全栈单体时，优先考虑直接作为 Worker 部署，而非传统的 Pages 静态托管附加 Functions 的模式。
+* **New Conventions**:
+  * **生产绑定规范**: 无论 Cloudflare CLI 自动生成的生产数据库绑定名是什么（例如 `prompt_vault_db`），在更新 `wrangler.toml` 时，**必须强制将其改回我们在代码中约定的 `binding = "DB"`**，仅替换 `database_id`。这样才能保证 `platform.env.DB` 逻辑在开发和生产环境无缝流转。
