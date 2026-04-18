@@ -16,3 +16,8 @@ binding = "DB"
 database_name = "prompt-vault-db"
 database_id = "e40f21c1-dbd5-405f-b5e8-21bbf563148e"
 migrations_dir = "drizzle/migrations"
+
+[observability]
+[observability.logs]
+enabled = false
+invocation_logs = true
