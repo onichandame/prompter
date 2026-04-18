@@ -1,10 +1,12 @@
 <script lang="ts">
     import { enhance } from '$app/forms';
     import { goto } from '$app/navigation';
-    import { fade } from 'svelte/transition';
-    let { data, form } = $props();
+        import { fade } from 'svelte/transition';
+        import Dialog from '$lib/components/Dialog.svelte';
+        let { data, form } = $props();
 
-    let searchTimer: ReturnType<typeof setTimeout>;
+        let searchTimer: ReturnType<typeof setTimeout>;
+        let promptToDelete = $state<{id: string, title: string} | null>(null);
     let copiedContent = $state<string | null>(null);
 
     async function copyToClipboard(text: string) {
@@ -73,15 +75,29 @@
 
 <div class="w-full max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {#each data.prompts as prompt}
-            <div 
-                class="border border-gray-900 p-6 hover:border-gray-600 transition-colors cursor-pointer group flex flex-col h-64"
-                role="button"
-                tabindex="0"
-                onclick={() => copyToClipboard(prompt.content)}
-                onkeydown={(e) => e.key === 'Enter' && copyToClipboard(prompt.content)}
-            >
-                <h3 class="font-medium mb-3 text-lg tracking-tight group-hover:text-white text-gray-200">{prompt.title}</h3>
-                <p class="text-gray-500 text-sm leading-relaxed line-clamp-5 flex-1 font-mono">{prompt.content}</p>
+                <div
+                    class="relative border border-gray-900 p-6 hover:border-gray-600 transition-colors cursor-pointer group flex flex-col h-64"
+                    role="button"
+                    tabindex="0"
+                    onclick={() => copyToClipboard(prompt.content)}
+                    onkeydown={(e) => e.key === 'Enter' && copyToClipboard(prompt.content)}
+                >
+                    <div class="flex justify-between items-start mb-3">
+                            <h3 class="font-medium text-lg tracking-tight group-hover:text-white text-gray-200">{prompt.title}</h3>
+                            <button
+                                type="button"
+                                aria-label="Delete prompt"
+                                class="text-gray-800 hover:text-red-500 transition-colors focus:outline-none"
+                                onclick={(e) => {
+                                    e.stopPropagation();
+                                    promptToDelete = { id: prompt.id, title: prompt.title };
+                                }}
+                                onkeydown={(e) => e.stopPropagation()}
+                            >
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                            </button>
+                        </div>
+                    <p class="text-gray-500 text-sm leading-relaxed line-clamp-5 flex-1 font-mono">{prompt.content}</p>
                 <div class="mt-4 flex justify-between items-center text-xs font-mono text-gray-700">
                     <span>{prompt.tags ? prompt.tags.join(', ') : 'No tags'}</span>
                     <span class="{copiedContent === prompt.content ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity text-[#39FF14]">
@@ -98,8 +114,26 @@
     </div>
 
     {#if copiedContent}
-        <div transition:fade={{ duration: 200 }} class="fixed top-8 right-8 bg-black border border-[#39FF14] text-[#39FF14] px-5 py-3 z-50 font-mono text-sm flex items-center gap-2 shadow-2xl">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-            Copied to clipboard
-        </div>
-    {/if}
+            <div transition:fade={{ duration: 200 }} class="fixed top-8 right-8 bg-black border border-[#39FF14] text-[#39FF14] px-5 py-3 z-50 font-mono text-sm flex items-center gap-2 shadow-2xl">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                Copied to clipboard
+            </div>
+        {/if}
+
+        <Dialog
+            isOpen={!!promptToDelete}
+            title="Delete Prompt"
+            message={`Are you sure you want to permanently delete "${promptToDelete?.title}"? This action cannot be undone.`}
+            oncancel={() => promptToDelete = null}
+        >
+            <button class="px-5 py-2 text-gray-500 hover:text-white transition-colors font-mono text-sm focus:outline-none" onclick={() => promptToDelete = null}>Cancel</button>
+            <form method="POST" action="?/delete" use:enhance={() => {
+                return async ({ update }) => {
+                    await update();
+                    promptToDelete = null;
+                };
+            }}>
+                <input type="hidden" name="id" value={promptToDelete?.id} />
+                <button type="submit" class="bg-red-900/20 text-red-500 border border-red-900 hover:bg-red-500 hover:text-black hover:border-red-500 px-6 py-2 transition-colors font-medium font-mono text-sm focus:outline-none">Confirm Delete</button>
+            </form>
+        </Dialog>

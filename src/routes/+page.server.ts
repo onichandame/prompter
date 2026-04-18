@@ -77,9 +77,33 @@ export const actions: Actions = {
             ]);
 
             return { success: true };
-        } catch (e: any) {
-            console.error('[Double-write Failed]:', e);
-            return fail(500, { message: 'Failed to create prompt' });
+            } catch (e: any) {
+                console.error('[Double-write Failed]:', e);
+                return fail(500, { message: 'Failed to create prompt' });
+            }
+        },
+        delete: async ({ request, platform }) => {
+            if (!platform?.env?.DB) {
+                console.error("[DB Error] D1 binding missing during mutation.");
+                return fail(500, { message: 'Database connection missing' });
+            }
+            
+            const db = drizzle(platform.env.DB);
+            const formData = await request.formData();
+            const id = formData.get('id')?.toString();
+            
+            if (!id) return fail(400, { message: 'Prompt ID is required' });
+            
+            try {
+                // [Architect Core]: Explicit Double-Delete via D1 Batch
+                await db.batch([
+                    db.delete(prompts).where(eq(prompts.id, id)),
+                    db.delete(promptsFts).where(eq(promptsFts.id, id))
+                ]);
+                return { success: true };
+            } catch (e: any) {
+                console.error('[Double-delete Failed]:', e);
+                return fail(500, { message: 'Failed to delete prompt' });
+            }
         }
-    }
-};
+    };

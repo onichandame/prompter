@@ -67,3 +67,11 @@
   * **DON'T DO**: 遇到 D1 数据库 "Failed query: select ..." 报错时，绝对禁止盲目重置或重新生成迁移。必须先执行 `npx wrangler d1 migrations list DB --local` 获取确凿的本地未迁移证据后，再执行 `apply`。
 * **New Conventions**:
   * **状态反馈规范**: 坚持 OLED 极简美学，拒绝引入臃肿的第三方 Toast UI 库。所有临时 UI 反馈均应直接使用 Svelte 原生 `$state` 与内置的 `transition` 配合绝对定位 (fixed) 容器实现。
+
+## Phase 8: Destructive Mutations & Global State (Completed)
+* **Architecture State**: 实现了 Prompt 的安全删除功能。利用 Drizzle `db.batch()` 达成了物理表与虚拟表的强一致性 Double-Delete。引入了全局 `<Dialog>` 拦截器，基于 Svelte 5 `$state` (`promptToDelete`) 与 `use:enhance` 回调机制实现了高危操作的无刷新两步确认。
+* **Lessons Learned & DON'Ts**:
+  * **DON'T DO**: 绝不在绑定了全局点击事件（如卡片复制）的父容器内直接放置高危形态的提交按钮。必须在按钮的 `onclick` 和 `onkeydown` 中强制调用 `e.stopPropagation()` 阻断事件冒泡，否则会引发不可预期的幽灵交互（例如删除的同时触发了复制 Toast）。
+  * **DON'T DO**: 绝不裸露破坏性变更 (Destructive Mutations)。D1 的删除是硬删除，必须在触发 Action 前挂载状态机制进行二次阻断。
+* **New Conventions**:
+  * **高危弹窗规范**: 凡涉及数据库写/删操作的阻断性 UI，统一通过抽象的 `src/lib/components/Dialog.svelte` 渲染，利用 Svelte 5 的 `{@render children()}` (Snippets) 注入特定业务表单。
