@@ -91,3 +91,10 @@
 * **New Conventions**:
   * **防闪烁规范**: 必须在 `src/app.html` 的 `<head>` 中注入同步的 Vanilla JS 脚本，在 DOM 渲染前阻断并直接计算 `localStorage.theme` 与系统偏好，向 `<html>` 挂载 `.dark`。
   * **无状态 Toggle 规范**: ThemeToggle 组件内部绝不允许存在任何框架级状态变量，其点击交互必须直接表现为原生的 `document.documentElement.classList.toggle('dark')` 并同步 `localStorage`。
+
+## Phase 11: Schema Normalization & Tag Taxonomy (Completed)
+* **Architecture State**: 完成了 Tag 数据结构的范式化重构，为未来的多租户隔离打下基础。移除了 `prompts` 表的 JSON `tags` 字段，新增 `tags` 物理表与 `prompt_tags` 关联表。引入了 `+layout.server.ts` 全局拉取标签树供侧边栏渲染。
+* **Lessons Learned & DON'Ts**:
+  * **DON'T DO**: 严禁在引入范式化关联表后，盲目修改前端的搜索路由状态（如引入 `?tag=`）。既然 FTS5 虚拟表中已经包含拍平的 `tags.join(' ')`，前端继续复用 `?q=` 即可实现原生 MATCH 标签检索，保持视图层对底层 Schema 变更的绝对无感。
+* **New Conventions**:
+  * **关联数据双写规范**: 在处理多对多关系（如新建/更新 Prompt 及其 Tags）时，必须在 D1 Batch 事务中手动处理 Tag 的去重插入 (Upsert) 以及 `prompt_tags` 的绑定/清理，同时**绝对不能遗漏**向 FTS 虚拟表双写拍平后的字符串。

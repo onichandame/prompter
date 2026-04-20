@@ -8,6 +8,13 @@
       "when": 1776504463901,
       "tag": "0000_init_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1776673293836,
+      "tag": "0001_dashing_maelstrom",
+      "breakpoints": true
     }
   ]
 }

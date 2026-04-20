@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/d1';
 import { sql, eq } from 'drizzle-orm';
-import { prompts, promptsFts } from '$lib/server/db/schema';
+import { prompts, promptsFts, tags, promptTags } from '$lib/server/db/schema';
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -14,30 +14,34 @@ export const load: PageServerLoad = async ({ platform, url }) => {
     const db = drizzle(platform.env.DB);
     let allPrompts;
 
-    if (q) {
-        // [Architect Core]: Inner join FTS virtual table for MATCH querying
-        const results = await db.select({
+        const baseQuery = db.select({
             id: prompts.id,
             title: prompts.title,
             content: prompts.content,
-            tags: prompts.tags,
+            tags: sql<string>`COALESCE(GROUP_CONCAT(${tags.name}), '')`,
             createdAt: prompts.createdAt
         })
         .from(prompts)
-        .innerJoin(promptsFts, eq(prompts.id, promptsFts.id))
-        .where(sql`${promptsFts} MATCH ${q}`)
-        .orderBy(prompts.createdAt);
-        
-        allPrompts = results;
-    } else {
-        allPrompts = await db.select().from(prompts).orderBy(prompts.createdAt);
-    }
+        .leftJoin(promptTags, eq(prompts.id, promptTags.promptId))
+        .leftJoin(tags, eq(promptTags.tagId, tags.id));
 
-    return {
-        prompts: allPrompts,
-        searchQuery: q || ''
+        if (q) {
+            allPrompts = await baseQuery
+                .innerJoin(promptsFts, eq(prompts.id, promptsFts.id))
+                .where(sql`${promptsFts} MATCH ${q}`)
+                .groupBy(prompts.id)
+                .orderBy(prompts.createdAt);
+        } else {
+            allPrompts = await baseQuery
+                .groupBy(prompts.id)
+                .orderBy(prompts.createdAt);
+        }
+
+        return {
+            prompts: allPrompts.map((p: any) => ({ ...p, tags: p.tags ? p.tags.split(',') : [] })),
+            searchQuery: q || ''
+        };
     };
-};
 
 export const actions: Actions = {
     create: async ({ request, platform }) => {
@@ -56,27 +60,28 @@ export const actions: Actions = {
             return fail(400, { message: 'Title and content are required' });
         }
 
-        const tags = tagsString.split(',').map(t => t.trim()).filter(Boolean);
-        const id = crypto.randomUUID();
+            const inputTags = tagsString.split(',').map(t => t.trim()).filter(Boolean);
+            const id = crypto.randomUUID();
 
-        try {
-            // [Architect Core]: Explicit Double-Write via D1 Batch
-            await db.batch([
-                db.insert(prompts).values({
-                    id,
-                    title,
-                    content,
-                    tags
-                }),
-                db.insert(promptsFts).values({
-                    id,
-                    title,
-                    content,
-                    tags: tags.join(' ') // FTS requires a flat string for tokenization
-                })
-            ]);
+            try {
+                const tagIds: string[] = [];
+                for (const tagName of inputTags) {
+                    let existing = await db.select({ id: tags.id }).from(tags).where(eq(tags.name, tagName)).get();
+                    if (!existing) {
+                        const newTagId = crypto.randomUUID();
+                        await db.insert(tags).values({ id: newTagId, name: tagName }).onConflictDoNothing();
+                        existing = { id: newTagId };
+                    }
+                    tagIds.push(existing.id);
+                }
 
-            return { success: true };
+                const op1 = db.insert(prompts).values({ id, title, content });
+                const op2 = db.insert(promptsFts).values({ id, title, content, tags: inputTags.join(' ') });
+                const dynamicOps = tagIds.map(tagId => db.insert(promptTags).values({ promptId: id, tagId }));
+
+                await db.batch([op1, op2, ...dynamicOps]);
+
+                return { success: true };
             } catch (e: any) {
                 console.error('[Double-write Failed]:', e);
                 return fail(500, { message: 'Failed to create prompt' });
@@ -123,24 +128,28 @@ export const actions: Actions = {
                     return fail(400, { message: 'ID, title, and content are required' });
                 }
 
-                const tags = tagsString.split(',').map(t => t.trim()).filter(Boolean);
+            const inputTags = tagsString.split(',').map(t => t.trim()).filter(Boolean);
 
-                try {
-                    // [Architect Core]: Explicit Double-Update via D1 Batch
-                    await db.batch([
-                        db.update(prompts).set({
-                            title,
-                            content,
-                            tags,
-                            updatedAt: sql`(unixepoch())`
-                        }).where(eq(prompts.id, id)),
-                        db.update(promptsFts).set({
-                            title,
-                            content,
-                            tags: tags.join(' ')
-                        }).where(eq(promptsFts.id, id))
-                    ]);
-                    return { success: true };
+            try {
+                const tagIds: string[] = [];
+                for (const tagName of inputTags) {
+                    let existing = await db.select({ id: tags.id }).from(tags).where(eq(tags.name, tagName)).get();
+                    if (!existing) {
+                        const newTagId = crypto.randomUUID();
+                        await db.insert(tags).values({ id: newTagId, name: tagName }).onConflictDoNothing();
+                        existing = { id: newTagId };
+                    }
+                    tagIds.push(existing.id);
+                }
+
+                const op1 = db.update(prompts).set({ title, content, updatedAt: sql`(unixepoch())` }).where(eq(prompts.id, id));
+                const op2 = db.update(promptsFts).set({ title, content, tags: inputTags.join(' ') }).where(eq(promptsFts.id, id));
+                const op3 = db.delete(promptTags).where(eq(promptTags.promptId, id));
+                const dynamicOps = tagIds.map(tagId => db.insert(promptTags).values({ promptId: id, tagId }));
+
+                await db.batch([op1, op2, op3, ...dynamicOps]);
+
+                return { success: true };
                 } catch (e: any) {
                     console.error('[Double-update Failed]:', e);
                     return fail(500, { message: 'Failed to update prompt' });
