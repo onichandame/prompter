@@ -100,10 +100,50 @@ export const actions: Actions = {
                     db.delete(prompts).where(eq(prompts.id, id)),
                     db.delete(promptsFts).where(eq(promptsFts.id, id))
                 ]);
-                return { success: true };
-            } catch (e: any) {
-                console.error('[Double-delete Failed]:', e);
-                return fail(500, { message: 'Failed to delete prompt' });
+                    return { success: true };
+                } catch (e: any) {
+                    console.error('[Double-delete Failed]:', e);
+                    return fail(500, { message: 'Failed to delete prompt' });
+                }
+            },
+            update: async ({ request, platform }) => {
+                if (!platform?.env?.DB) {
+                    console.error("[DB Error] D1 binding missing during mutation.");
+                    return fail(500, { message: 'Database connection missing' });
+                }
+
+                const db = drizzle(platform.env.DB);
+                const formData = await request.formData();
+                const id = formData.get('id')?.toString();
+                const title = formData.get('title')?.toString();
+                const content = formData.get('content')?.toString();
+                const tagsString = formData.get('tags')?.toString() || '';
+
+                if (!id || !title || !content) {
+                    return fail(400, { message: 'ID, title, and content are required' });
+                }
+
+                const tags = tagsString.split(',').map(t => t.trim()).filter(Boolean);
+
+                try {
+                    // [Architect Core]: Explicit Double-Update via D1 Batch
+                    await db.batch([
+                        db.update(prompts).set({
+                            title,
+                            content,
+                            tags,
+                            updatedAt: sql`(unixepoch())`
+                        }).where(eq(prompts.id, id)),
+                        db.update(promptsFts).set({
+                            title,
+                            content,
+                            tags: tags.join(' ')
+                        }).where(eq(promptsFts.id, id))
+                    ]);
+                    return { success: true };
+                } catch (e: any) {
+                    console.error('[Double-update Failed]:', e);
+                    return fail(500, { message: 'Failed to update prompt' });
+                }
             }
-        }
-    };
+        };

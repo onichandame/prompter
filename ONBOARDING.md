@@ -75,3 +75,11 @@
   * **DON'T DO**: 绝不裸露破坏性变更 (Destructive Mutations)。D1 的删除是硬删除，必须在触发 Action 前挂载状态机制进行二次阻断。
 * **New Conventions**:
   * **高危弹窗规范**: 凡涉及数据库写/删操作的阻断性 UI，统一通过抽象的 `src/lib/components/Dialog.svelte` 渲染，利用 Svelte 5 的 `{@render children()}` (Snippets) 注入特定业务表单。
+
+## Phase 9: Edit Flow & State Mutability (Completed)
+* **Architecture State**: 贯通了 Prompt 的修改闭环。服务端在 `+page.server.ts` 中新增了 `?/update` Action，继续严格执行 D1 物理表与 FTS5 虚拟表的 `db.batch()` 双写更新；前端复用了全局 `<Dialog>` 组件，引入 `$state` `promptToEdit` 驱动编辑弹窗。
+* **Lessons Learned & DON'Ts**:
+  * **DON'T DO**: 当在一个已经绑定了全局点击事件（如卡片级别的 Copy）的容器内部并排增加多个交互按钮（如 Edit 和 Delete）时，绝对禁止漏掉 `e.stopPropagation()`。否则编辑动作不仅会弹窗，还会触发底层卡片的复制操作，导致幽灵状态。
+  * 对于 FTS5 虚拟表的更新，必须像插入时一样，再次执行 `tags.join(' ')` 将数组拍平，否则更新后该条目的 Tag 检索将永久失效。
+* **New Conventions**:
+  * **组件复用规范**: 全局阻断性交互（Delete, Edit）统一复用已沉淀的 `<Dialog>` 骨架，通过注入不同的 `form` action 和不同的状态触发器（`promptToDelete` vs `promptToEdit`）实现逻辑分流，保持 DOM 结构的极简。
