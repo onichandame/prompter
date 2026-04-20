@@ -83,3 +83,11 @@
   * 对于 FTS5 虚拟表的更新，必须像插入时一样，再次执行 `tags.join(' ')` 将数组拍平，否则更新后该条目的 Tag 检索将永久失效。
 * **New Conventions**:
   * **组件复用规范**: 全局阻断性交互（Delete, Edit）统一复用已沉淀的 `<Dialog>` 骨架，通过注入不同的 `form` action 和不同的状态触发器（`promptToDelete` vs `promptToEdit`）实现逻辑分流，保持 DOM 结构的极简。
+
+## Phase 10: Zero-Svelte Dual-Track Theme (Completed)
+* **Architecture State**: 彻底抛弃了基于纯黑 OLED 的单轨美学，重构为基于 Opencode 极简灰黑质感的明暗双轨自适应主题 (Dark/Light)。状态流转完全剥离出 Svelte 的响应式生命周期，下沉至最底层的 Native DOM 与原生 CSS 媒体查询。
+* **Lessons Learned & DON'Ts**:
+  * **DON'T DO**: 严禁使用 Svelte 的 `$state` 或 `onMount` 来初始化全局主题（这属于典型的过度设计）。这会不可避免地导致在 SSR 或页面冷启动时产生刺眼的无样式闪烁 (FOUC)。
+* **New Conventions**:
+  * **防闪烁规范**: 必须在 `src/app.html` 的 `<head>` 中注入同步的 Vanilla JS 脚本，在 DOM 渲染前阻断并直接计算 `localStorage.theme` 与系统偏好，向 `<html>` 挂载 `.dark`。
+  * **无状态 Toggle 规范**: ThemeToggle 组件内部绝不允许存在任何框架级状态变量，其点击交互必须直接表现为原生的 `document.documentElement.classList.toggle('dark')` 并同步 `localStorage`。
