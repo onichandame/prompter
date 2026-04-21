@@ -98,3 +98,6 @@
   * **DON'T DO**: 严禁在引入范式化关联表后，盲目修改前端的搜索路由状态（如引入 `?tag=`）。既然 FTS5 虚拟表中已经包含拍平的 `tags.join(' ')`，前端继续复用 `?q=` 即可实现原生 MATCH 标签检索，保持视图层对底层 Schema 变更的绝对无感。
 * **New Conventions**:
   * **关联数据双写规范**: 在处理多对多关系（如新建/更新 Prompt 及其 Tags）时，必须在 D1 Batch 事务中手动处理 Tag 的去重插入 (Upsert) 以及 `prompt_tags` 的绑定/清理，同时**绝对不能遗漏**向 FTS 虚拟表双写拍平后的字符串。
+
+## Form Interaction Conventions (Phase 11)
+- **Keyboard Shortcuts in SvelteKit Forms**: When implementing `Ctrl+Enter` or `Cmd+Enter` to submit forms from inside a `<textarea>`, always intercept the `keydown` event and invoke `e.preventDefault(); e.currentTarget.form?.requestSubmit();`. This perfectly integrates with SvelteKit's `use:enhance` by triggering the native DOM submit event (which SvelteKit intercepts) rather than bypassing it, while safely preventing unwanted newline insertions.
